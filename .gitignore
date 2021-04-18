@@ -1,2 +1,12 @@
 __pycache__/
+*.pkl
 .cache/
+project/
+project_test/
+project_test_/
+project_most/
+training-runs/
+dataset/
+.vscode/
+ziflVnov
+zifIVnov
