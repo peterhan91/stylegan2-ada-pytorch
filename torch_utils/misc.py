@@ -260,3 +260,37 @@ def print_module_summary(module, inputs, max_nesting=3, skip_redundant=True):
     return outputs
 
 #----------------------------------------------------------------------------
+# helper function to get # output channels of the previous layer
+
+def get_norm_layer(norm_type='instance'):
+    def get_out_channel(layer):
+        if hasattr(layer, 'out_channels'):
+            return getattr(layer, 'out_channels')
+        return layer.weight.size(0)
+
+    # this function will be returned
+    def add_norm_layer(layer):
+        nonlocal norm_type
+        if norm_type.startswith('spectral'):
+            layer = torch.nn.utils.spectral_norm(layer)
+            subnorm_type = norm_type[len('spectral'):]
+
+        if subnorm_type == 'none' or len(subnorm_type) == 0:
+            return layer
+
+        # remove bias in the previous layer, which is meaningless
+        # since it has no effect after normalization
+        if getattr(layer, 'bias', None) is not None:
+            delattr(layer, 'bias')
+            layer.register_parameter('bias', None)
+
+        if subnorm_type == 'batch':
+            norm_layer = torch.nn.BatchNorm2d(get_out_channel(layer), affine=True)
+        elif subnorm_type == 'instance':
+            norm_layer = torch.nn.InstanceNorm2d(get_out_channel(layer), affine=False)
+        else:
+            raise ValueError('normalization layer %s is not recognized' % subnorm_type)
+
+        return torch.nn.Sequential(layer, norm_layer)
+
+    return add_norm_layer
